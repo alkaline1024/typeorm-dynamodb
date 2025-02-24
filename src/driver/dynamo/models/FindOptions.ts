@@ -31,7 +31,7 @@ const removeLeadingAndTrailingQuotes = (text: string) => {
     return text.replace(/(^['"]|['"]$)/g, '')
 }
 
-const containsToFilterExpression = (expression: string) => {
+const containsToFilterExpression = (expression: string, counter: number) => {
     if (expression && expression.toLowerCase().includes('contains(')) {
         const haystack = expression.replace(/^contains\(/gi, '').replace(/\)$/, '')
         const parts = haystack.split(',')
@@ -40,7 +40,7 @@ const containsToFilterExpression = (expression: string) => {
             const value = parts[1].trim()
             const re = new RegExp(`${name}(?=(?:(?:[^']*'){2})*[^']*$)`)
             let newExpression = haystack.replace(re, `#${poundToUnderscore(name)}`)
-            newExpression = newExpression.replace(value, `:${poundToUnderscore(name)}`)
+            newExpression = newExpression.replace(value, `:${poundToUnderscore(name)}${counter}`)
             return `contains(${newExpression})`
         } else {
             throw Error(`Failed to parse contains to ExpressionAttributeNames: ${expression}`)
@@ -49,14 +49,14 @@ const containsToFilterExpression = (expression: string) => {
     return expression
 }
 
-const containsToAttributeValues = (expression: string, values: any) => {
+const containsToAttributeValues = (expression: string, values: any, counter: number) => {
     if (expression && expression.toLowerCase().includes('contains(')) {
         const haystack = expression.replace(/^contains\(/gi, '').replace(/\)$/, '')
         const parts = haystack.split(',')
         if (parts.length === 2) {
             const name = parts[0].trim()
             const value = parts[1].trim().replace(/'/g, '')
-            values[`:${poundToUnderscore(name)}`] = marshall(removeLeadingAndTrailingQuotes(value))
+            values[`:${poundToUnderscore(name)}${counter}`] = marshall(removeLeadingAndTrailingQuotes(value))
         } else {
             throw Error(`Failed to parse contains to ExpressionAttributeNames: ${expression}`)
         }
@@ -109,7 +109,6 @@ export class FindOptions {
 
     static toExpressionAttributeValues (findOptions: FindOptions) {
         const values: any = {}
-        let aliasCounter = 0; // Counter for unique aliases
         if (isNotEmpty(findOptions.where)) {
             const keys = Object.keys(findOptions.where)
             for (let i = 0; i < keys.length; i++) {
@@ -132,22 +131,24 @@ export class FindOptions {
                 }
             }
         }
+        let aliasCounter = 0; // Counter for unique aliases
         if (findOptions.filter) {
             const expressions = findOptions.filter.split(/ and | or /gi).map(expression => expression.trim())
             expressions.forEach(expression => {
-                expression = containsToAttributeValues(expression, values)
+                expression = containsToAttributeValues(expression, values, aliasCounter)
                 if (!expression.toLowerCase().includes('contains(')) {
                     const parts = splitOperators(expression)
                     if (parts.length === 2) {
                         const name = parts[0].trim()
                         const value = parts[1].trim()
                         // Generate unique alias
-                        const uniqueAlias = `:${poundToUnderscore(name)}${aliasCounter++}`;
+                        const uniqueAlias = `:${poundToUnderscore(name)}${aliasCounter}`;
                         values[uniqueAlias] = marshall(removeLeadingAndTrailingQuotes(value))
                     } else {
                         throw Error(`Failed to convert filter to ExpressionAttributeValues: ${findOptions.filter}`)
                     }
                 }
+                aliasCounter++;
             })
         }
         return commonUtils.isNotEmpty(values) ? values : undefined
@@ -159,7 +160,7 @@ export class FindOptions {
             const expressions = options.filter.split(/ and | or /gi) // Split by AND/OR
             const connectors = options.filter.match(/ and | or /gi) || [] // Extract AND/OR operators
             const processedExpressions = expressions.map(expression => {
-                let processedExpression = containsToFilterExpression(expression.trim())
+                let processedExpression = containsToFilterExpression(expression.trim(), aliasCounter)
                 if (!expression.toLowerCase().includes('contains(')) {
                     const parts = splitOperators(expression.trim())
                     if (parts.length === 2) {
@@ -178,6 +179,7 @@ export class FindOptions {
                         throw Error(`Failed to convert filter to ExpressionAttributeValues: ${options.filter}`)
                     }
                 }
+                aliasCounter++;
                 return processedExpression
             })
 
