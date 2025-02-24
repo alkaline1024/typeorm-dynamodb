@@ -13,6 +13,7 @@
     "convert": "npx ts-node src/convert/hibernate-entity-converter.ts",
     "lint": "eslint src/**/*.ts --fix",
     "prepublishOnly": "npm run build",
+    "prepare": "npm run build",
     "test": "jest --coverage",
     "tsc": "tsc -p tsconfig.json"
   },
