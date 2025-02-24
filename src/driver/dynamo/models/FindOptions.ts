@@ -167,7 +167,7 @@ export class FindOptions {
                         const name = parts[0].trim()
                         const value = parts[1].trim()
                         // Update FilterExpression for new unique alias
-                        const uniqueAlias = `:${poundToUnderscore(name)}{aliasCounter++}`
+                        const uniqueAlias = `:${poundToUnderscore(name)}${aliasCounter}`
                         processedExpression = processedExpression.replace(name, `#${poundToUnderscore(name)}`)
                         processedExpression = processedExpression.replace(value, uniqueAlias)
                         processedExpression = processedExpression.replace(/['"]/g, '') // Remove quotes
