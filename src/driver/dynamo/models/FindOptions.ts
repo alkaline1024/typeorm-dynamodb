@@ -109,6 +109,7 @@ export class FindOptions {
 
     static toExpressionAttributeValues (findOptions: FindOptions) {
         const values: any = {}
+        let aliasCounter = 0; // Counter for unique aliases
         if (isNotEmpty(findOptions.where)) {
             const keys = Object.keys(findOptions.where)
             for (let i = 0; i < keys.length; i++) {
@@ -140,7 +141,9 @@ export class FindOptions {
                     if (parts.length === 2) {
                         const name = parts[0].trim()
                         const value = parts[1].trim()
-                        values[`:${poundToUnderscore(name)}`] = marshall(removeLeadingAndTrailingQuotes(value))
+                        // Generate unique alias
+                        const uniqueAlias = `:${poundToUnderscore(name)}${aliasCounter++}`;
+                        values[uniqueAlias] = marshall(removeLeadingAndTrailingQuotes(value))
                     } else {
                         throw Error(`Failed to convert filter to ExpressionAttributeValues: ${findOptions.filter}`)
                     }
@@ -151,6 +154,7 @@ export class FindOptions {
     }
 
     static toFilterExpression (options: FindOptions) {
+        let aliasCounter = 0; // Counter for unique aliases
         if (options.filter) {
             const expressions = options.filter.split(/ and | or /gi) // Split by AND/OR
             const connectors = options.filter.match(/ and | or /gi) || [] // Extract AND/OR operators
@@ -168,7 +172,7 @@ export class FindOptions {
                             const re = new RegExp(`${name}(?=(?:(?:[^"]*"){2})*[^"]*$)`)
                             processedExpression = processedExpression.replace(re, `#${poundToUnderscore(name)}`)
                         }
-                        processedExpression = processedExpression.replace(value, `:${poundToUnderscore(name)}`)
+                        processedExpression = processedExpression.replace(value, `:${poundToUnderscore(name)}${aliasCounter}`)
                         processedExpression = processedExpression.replace(/['"]/g, '')
                     } else {
                         throw Error(`Failed to convert filter to ExpressionAttributeValues: ${options.filter}`)
