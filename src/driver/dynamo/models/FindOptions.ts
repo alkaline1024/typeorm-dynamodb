@@ -131,7 +131,7 @@ export class FindOptions {
                 }
             }
         }
-        let aliasCounter = 0; // Counter for unique aliases
+        let aliasCounter = 0 // Counter for unique aliases
         if (findOptions.filter) {
             const expressions = findOptions.filter.split(/ and | or /gi).map(expression => expression.trim())
             expressions.forEach(expression => {
@@ -142,20 +142,20 @@ export class FindOptions {
                         const name = parts[0].trim()
                         const value = parts[1].trim()
                         // Generate unique alias
-                        const uniqueAlias = `:${poundToUnderscore(name)}${aliasCounter}`;
+                        const uniqueAlias = `:${poundToUnderscore(name)}${aliasCounter}`
                         values[uniqueAlias] = marshall(removeLeadingAndTrailingQuotes(value))
                     } else {
                         throw Error(`Failed to convert filter to ExpressionAttributeValues: ${findOptions.filter}`)
                     }
                 }
-                aliasCounter++;
+                aliasCounter++
             })
         }
         return commonUtils.isNotEmpty(values) ? values : undefined
     }
 
     static toFilterExpression (options: FindOptions) {
-        let aliasCounter = 0; // Counter for unique aliases
+        let aliasCounter = 0 // Counter for unique aliases
         if (options.filter) {
             const expressions = options.filter.split(/ and | or /gi) // Split by AND/OR
             const connectors = options.filter.match(/ and | or /gi) || [] // Extract AND/OR operators
@@ -166,20 +166,16 @@ export class FindOptions {
                     if (parts.length === 2) {
                         const name = parts[0].trim()
                         const value = parts[1].trim()
-                        if (value.startsWith("'")) {
-                            const re = new RegExp(`${name}(?=(?:(?:[^']*'){2})*[^']*$)`)
-                            processedExpression = processedExpression.replace(re, `#${poundToUnderscore(name)}`)
-                        } else if (value.startsWith('"')) {
-                            const re = new RegExp(`${name}(?=(?:(?:[^"]*"){2})*[^"]*$)`)
-                            processedExpression = processedExpression.replace(re, `#${poundToUnderscore(name)}`)
-                        }
-                        processedExpression = processedExpression.replace(value, `:${poundToUnderscore(name)}${aliasCounter}`)
-                        processedExpression = processedExpression.replace(/['"]/g, '')
+                        // Update FilterExpression for new unique alias
+                        const uniqueAlias = `:${poundToUnderscore(name)}{aliasCounter++}`
+                        processedExpression = processedExpression.replace(name, `#${poundToUnderscore(name)}`)
+                        processedExpression = processedExpression.replace(value, uniqueAlias)
+                        processedExpression = processedExpression.replace(/['"]/g, '') // Remove quotes
                     } else {
                         throw Error(`Failed to convert filter to ExpressionAttributeValues: ${options.filter}`)
                     }
                 }
-                aliasCounter++;
+                aliasCounter++
                 return processedExpression
             })
 
